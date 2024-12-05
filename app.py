@@ -35,7 +35,7 @@ def load_model():
         return None
 
 # Initialize the model
-model = load_model()
+model = None
 
 @app.route('/', methods=['GET'])
 def home():
@@ -475,8 +475,11 @@ def renderPredictPage():
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    global model
     if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
+        model = load_model()
+        if model is None:
+            return jsonify({'error': 'Model not loaded'}), 500
 
     try:
         input_df = pd.DataFrame(0, index=[0], columns=COLUMNS)
@@ -621,8 +624,11 @@ def predict():
 
 @app.route('/api/predict', methods=['POST'])
 def api_predict():
+    global model
     if model is None:
-        return jsonify({'error': 'Model not loaded'}), 500
+        model = load_model()
+        if model is None:
+            return jsonify({'error': 'Model not loaded'}), 500
 
     try:
         data = request.get_json()
