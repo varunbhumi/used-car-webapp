@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
 import os
+from waitress import serve
 
 app = Flask(__name__)
 
@@ -688,4 +689,4 @@ def api_predict():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    serve(app, host='0.0.0.0', port=port)
