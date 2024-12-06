@@ -1,12 +1,16 @@
+import logging
 from flask import Flask, render_template, request, jsonify, render_template_string
 import pandas as pd
 import numpy as np
 import pickle
 import os
-from waitress import serve
 
 app = Flask(__name__)
 app.config['ENV'] = 'production'
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Define the columns based on your dataset structure
 COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age',
@@ -27,16 +31,29 @@ COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age'
 # Load the trained model
 def load_model():
     try:
-        with open('usedcarpriceprediction3.pkl', 'rb') as file:
+        model_path = 'usedcarpriceprediction3.pkl'
+        if not os.path.exists(model_path):
+            logger.error(f"Model file not found at path: {model_path}")
+            return None
+        
+        with open(model_path, 'rb') as file:
             model = pickle.load(file)
-        print("Model loaded successfully!")
+        logger.info("Model loaded successfully!")
         return model
     except Exception as e:
-        print(f"Error loading model: {str(e)}")
+        logger.error(f"Error loading model: {str(e)}")
         return None
 
 # Initialize the model
 model = None
+first_request_processed = False
+
+@app.before_request
+def initialize():
+    global model, first_request_processed
+    if not first_request_processed:
+        model = load_model()
+        first_request_processed = True
 
 @app.route('/', methods=['GET'])
 def home():
@@ -476,11 +493,8 @@ def renderPredictPage():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    global model
     if model is None:
-        model = load_model()
-        if model is None:
-            return jsonify({'error': 'Model not loaded'}), 500
+        return jsonify({'error': 'Model not loaded'}), 500
 
     try:
         input_df = pd.DataFrame(0, index=[0], columns=COLUMNS)
@@ -502,12 +516,7 @@ def predict():
             if col in input_df.columns:
                 input_df[col] = 1
         
-        print("Input DataFrame:")
-        print(input_df)
-        
         prediction = model.predict(input_df)
-        
-        print("Prediction:", prediction)
         
         return render_template_string('''
             <!DOCTYPE html>
@@ -625,20 +634,14 @@ def predict():
             </html>
         ''', prediction=prediction)
         
-    except KeyError as e:
-        return jsonify({'error': f'Missing form field: {str(e)}'}), 400
-    except ValueError as e:
-        return jsonify({'error': f'Invalid value: {str(e)}'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error during prediction: {str(e)}")
+        return jsonify({'error': str(e)}), 400
 
 @app.route('/api/predict', methods=['POST'])
 def api_predict():
-    global model
     if model is None:
-        model = load_model()
-        if model is None:
-            return jsonify({'error': 'Model not loaded'}), 500
+        return jsonify({'error': 'Model not loaded'}), 500
 
     try:
         data = request.get_json()
@@ -683,12 +686,7 @@ def api_predict():
             if col in input_df.columns:
                 input_df[col] = 1
         
-        print("Input DataFrame:")
-        print(input_df)
-        
         prediction = model.predict(input_df)
-        
-        print("Prediction:", prediction)
         
         return jsonify({
             'predicted_price': float(prediction[0]),
@@ -696,11 +694,11 @@ def api_predict():
         })
         
     except Exception as e:
+        logger.error(f"Error during API prediction: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
         }), 400
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    serve(app, host='0.0.0.0', port=port)
+    app.run(debug=True)
