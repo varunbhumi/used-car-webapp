@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
+import boto3
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -22,16 +24,20 @@ COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age'
            'Brand_Porsche', 'Brand_Renault', 'Brand_Skoda', 'Brand_Smart', 'Brand_Tata',
            'Brand_Toyota', 'Brand_Volkswagen', 'Brand_Volvo']
 
-# Load the trained model
+# Load the trained model from S3
 def load_model():
-    model_path = os.getenv('MODEL_PATH', 'usedcarpriceprediction3.pkl')
+    s3 = boto3.client('s3', region_name='us-east-2')
+    bucket_name = 'used-car-predictions'
+    model_key = 'usedcarpriceprediction3.pkl'
+    
     try:
-        with open(model_path, 'rb') as file:
-            model = pickle.load(file)
-        print("Model loaded successfully!")
+        response = s3.get_object(Bucket=bucket_name, Key=model_key)
+        model_content = response['Body'].read()
+        model = pickle.loads(model_content)
+        print("Model loaded successfully from S3!")
         return model
     except Exception as e:
-        print(f"Error loading model: {str(e)}")
+        print(f"Error loading model from S3: {str(e)}")
         return None
 
 # Initialize the model
