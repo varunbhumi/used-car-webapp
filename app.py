@@ -2,11 +2,11 @@ from flask import Flask, render_template, request, jsonify, render_template_stri
 import pandas as pd
 import numpy as np
 import pickle
-from sklearn.preprocessing import StandardScaler
 import os
 from waitress import serve
 
 app = Flask(__name__)
+app.config['ENV'] = 'production'
 
 # Define the columns based on your dataset structure
 COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age',
@@ -625,8 +625,12 @@ def predict():
             </html>
         ''', prediction=prediction)
         
+    except KeyError as e:
+        return jsonify({'error': f'Missing form field: {str(e)}'}), 400
+    except ValueError as e:
+        return jsonify({'error': f'Invalid value: {str(e)}'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/predict', methods=['POST'])
 def api_predict():
