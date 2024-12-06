@@ -1,4 +1,3 @@
-import logging
 from flask import Flask, render_template, request, jsonify, render_template_string
 import pandas as pd
 import numpy as np
@@ -6,11 +5,6 @@ import pickle
 import os
 
 app = Flask(__name__)
-app.config['ENV'] = 'production'
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Define the columns based on your dataset structure
 COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age',
@@ -30,30 +24,18 @@ COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age'
 
 # Load the trained model
 def load_model():
+    model_path = os.getenv('MODEL_PATH', 'usedcarpriceprediction3.pkl')
     try:
-        model_path = 'usedcarpriceprediction3.pkl'
-        if not os.path.exists(model_path):
-            logger.error(f"Model file not found at path: {model_path}")
-            return None
-        
         with open(model_path, 'rb') as file:
             model = pickle.load(file)
-        logger.info("Model loaded successfully!")
+        print("Model loaded successfully!")
         return model
     except Exception as e:
-        logger.error(f"Error loading model: {str(e)}")
+        print(f"Error loading model: {str(e)}")
         return None
 
 # Initialize the model
-model = None
-first_request_processed = False
-
-@app.before_request
-def initialize():
-    global model, first_request_processed
-    if not first_request_processed:
-        model = load_model()
-        first_request_processed = True
+model = load_model()
 
 @app.route('/', methods=['GET'])
 def home():
@@ -635,7 +617,6 @@ def predict():
         ''', prediction=prediction)
         
     except Exception as e:
-        logger.error(f"Error during prediction: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/predict', methods=['POST'])
@@ -694,7 +675,6 @@ def api_predict():
         })
         
     except Exception as e:
-        logger.error(f"Error during API prediction: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
