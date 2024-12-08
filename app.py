@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 import pickle
 import os
-import boto3
-from io import BytesIO
+import logging
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 # Define the columns based on your dataset structure
 COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age',
@@ -24,20 +26,16 @@ COLUMNS = ['Kilometers_Driven', 'Mileage', 'Engine', 'Power', 'Seats', 'Car_Age'
            'Brand_Porsche', 'Brand_Renault', 'Brand_Skoda', 'Brand_Smart', 'Brand_Tata',
            'Brand_Toyota', 'Brand_Volkswagen', 'Brand_Volvo']
 
-# Load the trained model from S3
+# Load the trained model
 def load_model():
-    s3 = boto3.client('s3', region_name='us-east-2')
-    bucket_name = 'used-car-predictions'
-    model_key = 'usedcarpriceprediction3.pkl'
-    
+    model_path = os.getenv('MODEL_PATH', 'usedcarpriceprediction3.pkl')
     try:
-        response = s3.get_object(Bucket=bucket_name, Key=model_key)
-        model_content = response['Body'].read()
-        model = pickle.loads(model_content)
-        print("Model loaded successfully from S3!")
+        with open(model_path, 'rb') as file:
+            model = pickle.load(file)
+        logging.info("Model loaded successfully!")
         return model
     except Exception as e:
-        print(f"Error loading model from S3: {str(e)}")
+        logging.error(f"Error loading model: {str(e)}")
         return None
 
 # Initialize the model
@@ -623,6 +621,7 @@ def predict():
         ''', prediction=prediction)
         
     except Exception as e:
+        logging.error(f"Error in prediction: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @app.route('/api/predict', methods=['POST'])
@@ -681,6 +680,7 @@ def api_predict():
         })
         
     except Exception as e:
+        logging.error(f"Error in API prediction: {str(e)}")
         return jsonify({
             'error': str(e),
             'status': 'error'
